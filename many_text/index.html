@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://sandbox-d.ea-shutto-translation.net/trans.js?id=80496"></script>
+    <title>Lightweight Archive</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 追加の軽量化スタイル */
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .data-card { background: #fff; border: 1px solid #e1e1e1; padding: 10px; font-family: monospace; font-size: 0.9rem; color: #333; }
+        .spinner { width: 30px; height: 30px; border: 3px solid #eee; border-top: 3px solid #0fbcf9; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* カウントパネル（翻訳対象外にするための属性 data-stt-ignore と連動） */
+        .result-panel { position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: #fff; padding: 15px; border-radius: 5px; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="header-inner">
+            <h1 class="logo">Tech Archive</h1>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="#">Home</a></li>
+                    <li><a href="#">Data</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <h2>Log Database</h2>
+            <p>画面下部へスクロールするたびに900件ずつ取得します。</p>
+        </section>
+
+        <div id="data-container" class="data-grid"></div>
+
+        <div id="scroll-trigger" style="padding: 40px 0; text-align: center;" data-stt-ignore="true">
+            <div class="spinner"></div>
+        </div>
+    </main>
+
+    <div id="result-panel" class="result-panel" data-stt-ignore="true">
+        集計の準備中...
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('data-container');
+            const triggerEl = document.getElementById('scroll-trigger');
+            const resultPanel = document.getElementById('result-panel');
+
+            // --- 設定値 ---
+            const TARGET_MAX_PHRASES = 10001; // 最終的に目指すぴったりなフレーズ数
+            const LOAD_CHUNK_SIZE = 900;     // 1回のスクロールで取得する件数
+            let currentIndex = 0;            // データの連番ID
+            let isFetching = false;          // 重複読み込み防止フラグ
+
+            // --- フレーズカウント・シミュレーター ---
+            function getPhraseStats() {
+                const IGNORED_TAGS = new Set(['script', 'noscript', 'style', 'object', 'iframe', 'svg', 'code']);
+                const STOP_TAGS = new Set(['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'header', 'footer', 'nav', 'section', 'article', 'aside', 'main']);
+                const TARGET_ATTRS = ['alt', 'title', 'placeholder', 'aria-label'];
+                const uniquePhrases = new Set();
+                
+                function normalizeText(text) { return text.replace(/\s+/g, ' ').trim(); }
+                function isBlockElement(el) {
+                    if (!el || el.nodeType !== 1) return false;
+                    if (STOP_TAGS.has(el.tagName.toLowerCase())) return true;
+                    return ['block','flex','grid','table','list-item'].includes(window.getComputedStyle(el).display);
+                }
+                function collect(node, buffer) {
+                    if (node.nodeType === 3) {
+                        if (node.nodeValue.trim().length > 0) buffer.push(node.nodeValue);
+                        return;
+                    }
+                    if (node.nodeType === 1) {
+                        // ★翻訳対象外（カウント表示パネルなど）はスキップしてブレを防ぐ
+                        if (node.hasAttribute('stt-ignore') || node.hasAttribute('data-stt-ignore')) return;
+                        if (IGNORED_TAGS.has(node.tagName.toLowerCase())) return;
+                        
+                        TARGET_ATTRS.forEach(attr => {
+                            const val = node.getAttribute(attr);
+                            if (val) uniquePhrases.add(normalizeText(val));
+                        });
+
+                        const isBlock = isBlockElement(node);
+                        if (isBlock && buffer.length > 0) flush(buffer);
+                        
+                        node.childNodes.forEach(child => collect(child, buffer));
+                        
+                        if (isBlock && buffer.length > 0) flush(buffer);
+                    }
+                }
+                function flush(buffer) {
+                    const text = normalizeText(buffer.join(''));
+                    if (text.length > 0) uniquePhrases.add(text);
+                    buffer.length = 0;
+                }
+
+                const buf = [];
+                collect(document.body, buf);
+                flush(buf);
+                if (document.title) uniquePhrases.add(normalizeText(document.title));
+
+                let chars = 0;
+                uniquePhrases.forEach(t => chars += t.length);
+                return { size: uniquePhrases.size, chars: chars };
+            }
+
+            // --- パネルの表示更新 ---
+            function updatePanel(stats) {
+                const color = stats.size >= TARGET_MAX_PHRASES ? "#4cd137" : "#0fbcf9";
+                resultPanel.innerHTML = `
+                    <span style="color:${color}; font-weight:bold;">${stats.size >= TARGET_MAX_PHRASES ? 'ロード完了' : 'スクロール待機中...'}</span><br>
+                    現在のフレーズ数: <strong>${stats.size} / ${TARGET_MAX_PHRASES}</strong><br>
+                    合計文字数: <strong>${stats.chars.toLocaleString()}</strong>
+                `;
+            }
+
+            // --- データ読み込みロジック ---
+            function loadMoreData() {
+                // 1. 現在のフレーズ数を正確に把握
+                const currentStats = getPhraseStats();
+                
+                // 2. 1001件までに「あと何フレーズ足りないか」を計算
+                const remainingPhrases = TARGET_MAX_PHRASES - currentStats.size;
+
+                // 3. すでに上限到達なら処理終了
+                if (remainingPhrases <= 0) {
+                    triggerEl.style.display = 'none'; // スピナーを隠す
+                    return;
+                }
+
+                // 4. 200件、または残りフレーズ数の「少ない方」を生成
+                // ※ <div class="data-card">...</div> 1つにつき、ぴったり1フレーズとしてカウントされます
+                const itemsToLoad = Math.min(LOAD_CHUNK_SIZE, remainingPhrases);
+                
+                let htmlString = "";
+                for (let i = 0; i < itemsToLoad; i++) {
+                    // ユニークなテキストを生成（例: "レコード0", "レコード1"）
+                    htmlString += `<div class="data-card">レコード${currentIndex}　詳細を確認する</div>`;
+                    currentIndex++;
+                }
+
+                // 一気にDOMに追加（レンダリング負荷軽減）
+                container.insertAdjacentHTML('beforeend', htmlString);
+
+                // 5. 追加後のフレーズ数を再計算してパネル更新
+                const newStats = getPhraseStats();
+                updatePanel(newStats);
+
+                // 6. 1001フレーズに到達した場合は監視を解除
+                if (newStats.size >= TARGET_MAX_PHRASES) {
+                    observer.unobserve(triggerEl);
+                    triggerEl.style.display = 'none';
+                }
+
+                // ロック解除
+                setTimeout(() => { isFetching = false; }, 100); 
+            }
+
+            // --- スクロール検知 (Intersection Observer) ---
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !isFetching) {
+                    isFetching = true;
+                    loadMoreData();
+                }
+            }, { rootMargin: "0px 0px 150px 0px" });
+
+            // 最初に初期フレーズ数を計測してパネルに表示し、監視をスタート
+            updatePanel(getPhraseStats());
+            observer.observe(triggerEl);
+        });
+    </script>
+</body>
+</html>
+

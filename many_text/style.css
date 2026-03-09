@@ -1,0 +1,126 @@
+@charset "UTF-8";
+
+/* Reset & Base */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f4f6f9;
+}
+
+/* Header */
+.site-header {
+    background: #1e272e;
+    color: #fff;
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.logo { font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; }
+.main-nav ul { display: flex; gap: 20px; list-style: none; }
+.main-nav a { color: #d2dae2; text-decoration: none; font-size: 0.9rem; }
+
+/* Layout */
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    min-height: 80vh;
+}
+.intro {
+    margin-bottom: 2rem;
+    background: #fff;
+    padding: 1.5rem;
+    border-left: 5px solid #0fbcf9;
+}
+.intro h2 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+.intro p { color: #555; font-size: 0.95rem; }
+
+/* Data Grid */
+.data-grid {
+    display: grid;
+    /* 大量レンダリングをスムーズにするため、シンプルなGrid指定 */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+}
+.data-card {
+    background: #fff;
+    border: 1px solid #d2dae2;
+    padding: 1rem;
+    /* box-shadowやborder-radiusはレンダリング負荷になるため省略 */
+}
+.data-card h3 {
+    font-size: 1rem;
+    color: #1e272e;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.3rem;
+}
+.data-card p {
+    font-size: 0.85rem;
+    color: #485460;
+    margin-bottom: 1rem;
+}
+.data-card .meta {
+    font-size: 0.75rem;
+    background: #d2dae2;
+    padding: 4px 8px;
+    display: inline-block;
+    color: #1e272e;
+    font-family: monospace;
+}
+
+/* Scroll Trigger / Loading indicator */
+.loading-trigger {
+    text-align: center;
+    padding: 4rem 0;
+    margin-top: 2rem;
+    color: #808e9b;
+    font-weight: bold;
+}
+.spinner {
+    display: none;
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 4px solid #d2dae2;
+    border-top: 4px solid #0fbcf9;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+.is-loading .spinner { display: block; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Footer */
+.site-footer {
+    text-align: center;
+    padding: 2rem;
+    background: #1e272e;
+    color: #808e9b;
+    font-size: 0.8rem;
+}
+
+/* Result Panel (Fixed UI) */
+.result-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(30, 39, 46, 0.95);
+    color: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 9999;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
