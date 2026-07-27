@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>サロゲートペア エラー再現テスト</title>
+  <script src="https://sandbox-d.ea-shutto-translation.net/trans.js?id=82887"></script>
+</head>
+<body>
+
+  <h1>エラー再現テスト用ページ</h1>
+  
+  <div id="broken-widget-container"></div>
+  <img id="broken-image" src="dummy.jpg">
+  <p id="broken-text"></p>
+
+  <script>
+    // 絵文字（😊 = \uD83D\uDE0A）の前半部分（\uD83D）だけを意図的に末尾に配置します
+    const brokenString = "Instagram post with the caption: うちわ絵付け体験 開催中\uD83D";
+
+    // パターン1: aria-label属性にセット（ログの状況に最も近い）
+    document.getElementById('broken-widget-container').setAttribute('aria-label', brokenString);
+
+    // パターン2: alt属性にセット
+    document.getElementById('broken-image').setAttribute('alt', brokenString);
+
+    // パターン3: テキストノードにセット
+    document.getElementById('broken-text').innerText = "テキストのテスト\uD83D";
+  </script>
+
+</body>
+</html>
